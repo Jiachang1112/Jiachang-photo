@@ -25,6 +25,8 @@
         <a href="#work">作品</a>
         <a href="#pricing">方案</a>
         <a href="#faq">FAQ</a>
+        <!-- ✅ 新增購物按鈕（只加這一行） -->
+        <a href="#shop">購物</a>
         <a href="#contact" class="btn">預約洽詢</a>
       </nav>
     </div>
@@ -129,81 +131,4 @@
             <li>精修 25 張</li>
             <li>家庭互動引導</li>
           </ul>
-          <a href="#contact" class="btn">預約</a>
-        </div>
-        <div class="price-card">
-          <h3>Wedding 婚禮</h3>
-          <p class="price">NT$28,000 起</p>
-          <ul>
-            <li>半日／全日</li>
-            <li>流程客製報價</li>
-            <li>可加購妝髮／影片</li>
-          </ul>
-          <a href="#contact" class="btn">詢價</a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section id="faq" class="section">
-    <div class="container">
-      <h2>常見問題</h2>
-      <details>
-        <summary>檔期怎麼預約？</summary>
-        <p>填寫下方表單，留下日期與方案需求，我會在 3 個工作日內回覆。</p>
-      </details>
-      <details>
-        <summary>交件時間？</summary>
-        <p>精修 25–60 張，約 21–28 天交付雲端相簿。</p>
-      </details>
-      <details>
-        <summary>可改期或雨天備案？</summary>
-        <p>可改期一次或更換室內場地，視檔期與租借場地而定。</p>
-      </details>
-    </div>
-  </section>
-
-  <section id="contact" class="section alt">
-    <div class="container">
-      <h2>聯絡與預約</h2>
-      <form id="contact-form" class="contact-form"
-            action="https://formspree.io/f/xeorglbv"
-            method="POST">
-        <div class="form-row">
-          <label>姓名
-            <input type="text" name="name" placeholder="王小明" required />
-          </label>
-          <label>Email
-            <input type="email" name="_replyto" placeholder="you@example.com" required />
-          </label>
-        </div>
-        <div class="form-row">
-          <label>拍攝日期
-            <input type="date" name="date" />
-          </label>
-          <label>城市/地點
-            <input type="text" name="city" placeholder="台南 / 高雄 / 其他" />
-          </label>
-        </div>
-        <label>需求與預算
-          <textarea name="message" rows="5" placeholder="想拍攝的類型、風格、預算範圍…"></textarea>
-        </label>
-        <input type="hidden" name="_subject" value="網站預約諮詢通知" />
-        <input type="hidden" name="_gotcha" style="display:none" />
-        <input type="hidden" name="_next" value="thank-you.html" />
-        <button class="btn" type="submit">送出表單</button>
-        <p id="form-status" class="form-status" aria-live="polite"></p>
-      </form>
-      <p class="footnote">也歡迎直接私訊 IG：<a href="#" rel="noopener">your_ig_handle</a></p>
-    </div>
-  </section>
-
-  <footer class="site-footer">
-    <div class="container">
-      <p>© <span id="year"></span> 嘉成攝影 • All rights reserved.</p>
-    </div>
-  </footer>
-
-  <script src="assets/script.js"></script>
-</body>
-</html>
+          <a href="#contact"
