@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Mini Racer — WASD + Mobile</title>
+<style>
+  :root{
+    --ink:#e8eef7;--muted:#9fb3c8;--accent:#4dd3ff;--accent2:#ffd54d;--danger:#ff6b6b;
+    --bg:#0c1220;--panel:#121a2b;--panel2:#0f1524;--line:#20304a;--glow:0 0 24px rgba(77,211,255,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:radial-gradient(1200px 900px at 70% 10%,#15213a 0,#0c1220 60%,#090e19 100%);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans TC",sans-serif}
+  #wrap{position:fixed;inset:0;display:grid;grid-template-rows:auto 1fr auto}
+  header{display:flex;align-items:center;gap:.75rem;padding:.75rem 1rem;border-bottom:1px solid #17233b;background:linear-gradient(#10182a,#0f172a);position:relative}
+  header h1{margin:0;font-weight:800;font-size:1rem;letter-spacing:.04em;text-transform:uppercase}
+  header .btn{margin-left:auto;background:#0e1527;border:1px solid #1d2b4a;color:var(--ink);padding:.5rem .75rem;border-radius:.5rem;cursor:pointer}
+  header .btn:hover{box-shadow:var(--glow)}
+  #game{position:relative;overflow:hidden}
+  canvas{display:block;width:100%;height:100%}
+  /* HUD */
+  .hud{position:absolute;inset:0;pointer-events:none}
+  .chip{pointer-events:none;position:absolute;background:rgba(10,16,30,.72);backdrop-filter:blur(6px);border:1px solid #1d2b4a;border-radius:.75rem;padding:.5rem .75rem;box-shadow:0 8px 28px rgba(0,0,0,.35)}
+  .hud .speed{left:.75rem;bottom:.75rem;font-size:1.1rem}
+  .hud .lap{left:.75rem;top:.75rem}
+  .hud .pos{right:.75rem;top:.75rem}
+  .hud .best{left:.75rem;top:3.1rem}
+  .hud .notice{right:50%;transform:translateX(50%);top:1rem;color:#b7cff2;opacity:.9}
+  /* Minimap */
+  .minimap{position:absolute;right:.75rem;bottom:.75rem;width:160px;height:160px;background:rgba(7,11,22,.7);border:1px solid #1d2b4a;border-radius:.75rem;overflow:hidden}
+  /* Settings panel */
+  .panel{position:absolute;inset:auto .75rem .75rem .75rem;max-width:920px;margin:auto;background:rgba(9,14,26,.88);border:1px solid #1d2b4a;border-radius:.75rem;padding:.75rem;display:none;grid-gap:.5rem}
+  .panel.open{display:grid}
+  .row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:.5rem}
+  .row label{color:var(--muted);font-size:.9rem}
+  input[type=range]{width:220px}
+  select,button{background:#0e1527;border:1px solid #1d2b4a;color:var(--ink);padding:.45rem .6rem;border-radius:.5rem}
+  button:hover{box-shadow:var(--glow)}
+  /* Mobile Controls */
+  .mobile-only{display:none}
+  @media (pointer:coarse){
+    .mobile-only{display:block}
+  }
+  .pad{position:absolute;left:.75rem;bottom:.75rem;width:150px;height:150px;border-radius:50%;background:rgba(11,16,28,.5);border:1px solid #1d2b4a;touch-action:none}
+  .stick{position:absolute;left:50%;top:50%;width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;background:rgba(77,211,255,.25);border:1px solid #3aa8cc;box-shadow:var(--glow)}
+  .pedals{position:absolute;right:.75rem;bottom:.75rem;display:flex;gap:.75rem}
+  .pedals .pbtn{width:88px;height:88px;border-radius:.75rem;background:rgba(11,16,28,.55);border:1px solid #1d2b4a;display:grid;place-items:center;touch-action:none}
+  .pedals .pbtn b{font-size:.95rem;color:#cfe9ff}
+  .pedals .pbtn.gas{outline:1px solid rgba(77,211,255,.35)}
+  .pedals .pbtn.brk{outline:1px solid rgba(255,107,107,.35)}
+  /* Countdown overlay */
+  .count{position:absolute;inset:0;display:grid;place-items:center;font-weight:900;font-size:7vw;color:#cfe9ff;text-shadow:0 6px 0 #0b1225,0 12px 40px rgba(77,211,255,.45);pointer-events:none}
+  .toast{position:absolute;left:50%;transform:translateX(-50%);bottom:1rem;background:#0f1a2e;border:1px solid #23406a;padding:.5rem .75rem;border-radius:.5rem;color:#cfe9ff;opacity:.9}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header>
+    <h1>Mini Racer</h1>
+    <button id="btnStart" class="btn">Start / Restart</button>
+    <button id="btnPause" class="btn">Pause</button>
+    <button id="btnSettings" class="btn">Settings</button>
+  </header>
+
+  <div id="game">
+    <canvas id="cv"></canvas>
+    <div class="hud">
+      <div class="chip lap">Lap <span id="lapNum">1</span>/<span id="lapTotal">3</span> ・ <span id="lapTime">00:00.000</span></div>
+      <div class="chip best">Best <span id="bestTime">--:--.---</span></div>
+      <div class="chip pos">Pos <span id="pos">1</span>/<span id="total">1</span></div>
+      <div class="chip speed"><span id="speed">0</span> km/h</div>
+      <div class="chip notice" id="notice">WASD / ←→↑↓；手機請用左搖桿＋右油煞</div>
+      <div class="minimap"><canvas id="mini" width="160" height="160"></canvas></div>
+    </div>
+
+    <!-- Settings -->
+    <div id="panel" class="panel">
+      <div class="row"><label>圈數</label>
+        <select id="laps">
+          <option>1</option><option selected>3</option><option>5</option><option>8</option>
+        </select>
+      </div>
+      <div class="row"><label>對手機器人</label>
+        <select id="bots">
+          <option>0</option><option>2</option><option selected>4</option><option>7</option>
+        </select>
+      </div>
+      <div class="row"><label>難度（AI 速度）</label>
+        <input id="difficulty" type="range" min="0.7" max="1.2" step="0.01" value="0.95">
+      </div>
+      <div class="row"><label>操控靈敏度（方向盤）</label>
+        <input id="steerSens" type="range" min="0.8" max="2" step="0.05" value="1.2">
+      </div>
+      <div class="row"><label>畫質（軌跡抗鋸齒）</label>
+        <input id="quality" type="range" min="0.75" max="2" step="0.25" value="1">
+      </div>
+      <div class="row"><label>地面抓地/草地阻力</label>
+        <input id="grip" type="range" min="0.7" max="1.3" step="0.05" value="1">
+      </div>
+      <div class="row"><span></span><button id="btnApply">Apply & Resume</button></div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div class="mobile-only pad" id="pad"><div class="stick" id="stick"></div></div>
+    <div class="mobile-only pedals">
+      <div class="pbtn gas" id="gas"><b>GAS</b></div>
+      <div class="pbtn brk" id="brk"><b>BRAKE</b></div>
+    </div>
+
+    <div class="count" id="count"></div>
+    <div class="toast" id="toast" style="display:none">Saved</div>
+  </div>
+
+  <footer style="border-top:1px solid #17233b;background:#0f172a;color:#8fb0d6">
+    <div style="padding:.6rem 1rem;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+      <small>Tip: 桌機用 WASD 或方向鍵；Space 手煞、R 重置、P 暫停。</small>
+      <small style="margin-left:auto">© 2025 Mini Racer</small>
+    </div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  // ---------- Utils ----------
+  const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+  const lerp = (a,b,t)=>a+(b-a)*t;
+  const now = ()=>performance.now();
+  const TAU = Math.PI*2;
+
+  function fmt(ms){
+    if(!isFinite(ms)) return "--:--.---";
+    const m = Math.floor(ms/60000);
+    const s = Math.floor((ms%60000)/1000);
+    const ms3 = Math.floor(ms%1000).toString().padStart(3,"0");
+    return `${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}.${ms3}`;
+  }
+
+  // ---------- Input ----------
+  const key = {};
+  window.addEventListener('keydown',e=>{ key[e.key.toLowerCase()] = true; });
+  window.addEventListener('keyup',e=>{ key[e.key.toLowerCase()] = false; });
+
+  // Mobile pad
+  const pad = document.getElementById('pad');
+  const stick = document.getElementById('stick');
+  const gasBtn = document.getElementById('gas');
+  const brkBtn = document.getElementById('brk');
+  let gas=0, brake=0, steer=0;
+  let padActive=false, padCx=0, padCy=0, padR=62;
+
+  function bindPad(el, onmove){
+    const get = (t)=>('touches'in t)?t.touches[0]:t;
+    const down = e=>{
+      const t=get(e);
+      padActive=true;
+      const r = el.getBoundingClientRect();
+      padCx = r.left + r.width/2;
+      padCy = r.top + r.height/2;
+      move(e);
+    };
+    const move = e=>{
+      if(!padActive) return;
+      const t=get(e);
+      const dx = t.clientX - padCx;
+      const dy = t.clientY - padCy;
+      const d = Math.hypot(dx,dy);
+      const k = Math.min(1, d/padR);
+      const nx = (dx/d)||0, ny=(dy/d)||0;
+      const sx = nx * k, sy = ny * k;
+      stick.style.transform = `translate(${sx*padR}px, ${sy*padR}px)`;
+      onmove(sx,sy);
+      e.preventDefault();
+    };
+    const up = ()=>{
+      padActive=false; onmove(0,0);
+      stick.style.transform = `translate(0,0)`;
+    };
+    el.addEventListener('touchstart',down,{passive:false});
+    el.addEventListener('touchmove',move,{passive:false});
+    el.addEventListener('touchend',up,{passive:false});
+    el.addEventListener('mousedown',down);
+    window.addEventListener('mousemove',move);
+    window.addEventListener('mouseup',up);
+  }
+  bindPad(pad,(sx,sy)=>{
+    // Left/right = sx, up = -sy (forward)
+    steer = clamp(sx*1.4, -1, 1);
+    gas = clamp(-sy, 0, 1);
+    brake = clamp(sy>0? sy:0, 0, 1);
+  });
+
+  function bindHold(btn, setter){
+    const setOn = (v)=>{ setter(v); btn.style.filter = v? 'drop-shadow(0 0 12px rgba(255,255,255,.25))':'' };
+    let t=null;
+    const down = e=>{ setOn(1); e.preventDefault(); };
+    const up = ()=>{ setOn(0); };
+    btn.addEventListener('touchstart',down,{passive:false});
+    btn.addEventListener('touchend',up);
+    btn.addEventListener('mousedown',down);
+    window.addEventListener('mouseup',up);
+  }
+  bindHold(gasBtn, v=>gas=v);
+  bindHold(brkBtn, v=>brake=v);
+
+  // ---------- Track generation ----------
+  // 生成一條平滑的閉合路線（多段樣條），再畫出路面/草地與邊界。
+  function makeTrack(seed=1){
+    // 隨機但穩定
+    let s = seed>>>0;
+    const rnd=()=> (s= (s*1664525+1013904223)>>>0, (s&0xffff)/0xffff);
+
+    const R = 900;                 // 半徑
+    const N = 12;                  // 控制點數
+    const pts = [];
+    for(let i=0;i<N;i++){
+      const ang = i/N * TAU + rnd()*0.2;
+      const rad = R * (0.68 + rnd()*0.35);
+      pts.push([Math.cos(ang)*rad, Math.sin(ang)*rad]);
+    }
+    // Catmull-Rom sample
+    const path=[], steps=800;
+    const C = (p0,p1,p2,p3,t)=>{
+      const t2=t*t, t3=t2*t;
+      return [
+        0.5*((2*p1[0]) + (-p0[0]+p2[0])*t + (2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2 + (-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
+        0.5*((2*p1[1]) + (-p0[1]+p2[1])*t + (2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2 + (-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3),
+      ];
+    };
+    for(let i=0;i<N;i++){
+      const p0=pts[(i-1+N)%N], p1=pts[i], p2=pts[(i+1)%N], p3=pts[(i+2)%N];
+      for(let j=0;j<steps/N;j++){
+        const t=j/(steps/N);
+        path.push(C(p0,p1,p2,p3,t));
+      }
+    }
+    // 寬度&邊界
+    const width = 90; // 半寬
+    const normals = new Array(path.length);
+    for(let i=0;i<path.length;i++){
+      const a = path[i], b = path[(i+1)%path.length];
+      const dx=b[0]-a[0], dy=b[1]-a[1];
+      const L=Math.hypot(dx,dy)||1;
+      normals[i]=[-dy/L, dx/L];
+    }
+    const left=[], right=[];
+    for(let i=0;i<path.length;i++){
+      const n=normals[i];
+      left.push([path[i][0]+n[0]*width, path[i][1]+n[1]*width]);
+      right.push([path[i][0]-n[0]*width, path[i][1]-n[1]*width]);
+    }
+    // 檢查點（每 80 個點）
+    const cps=[];
+    for(let i=0;i<path.length;i+=80){
+      const p=path[i];
+      const n=normals[i];
+      cps.push({p, n, i});
+    }
+    // 起終點
+    const startIndex = 20; // 隨便取一段較直的
+    const start = path[startIndex];
+    const startDir = Math.atan2(
+      path[(startIndex+3)%path.length][1]-start[1],
+      path[(startIndex+3)%path.length][0]-start[0]
+    );
+    return {path,left,right,width,cps,start,startDir};
+  }
+
+  // ---------- Renderer ----------
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const mini = document.getElementById('mini');
+  const mctx = mini.getContext('2d');
+  let DPR = Math.max(1, Math.min(2.5, window.devicePixelRatio||1));
+  function resizeCanvas(scale=1){
+    DPR = Math.max(1, Math.min(3, (window.devicePixelRatio||1)*scale));
+    cv.width = Math.floor(cv.clientWidth * DPR);
+    cv.height= Math.floor(cv.clientHeight* DPR);
+  }
+  new ResizeObserver(()=>resizeCanvas(quality())).observe(cv);
+
+  function drawTrackTo(off, track){
+    const w=off.width, h=off.height;
+    const c=off.getContext('2d');
+    c.clearRect(0,0,w,h);
+    c.save();
+    c.translate(w/2,h/2);
+
+    // Grass
+    const grd = c.createRadialGradient(0,0,100, 0,0,1200);
+    grd.addColorStop(0,'#0a1a0f');
+    grd.addColorStop(1,'#06140c');
+    c.fillStyle=grd;
+    c.fillRect(-w/2,-h/2,w,h);
+
+    // Track surface
+    c.lineJoin='round';
+    c.lineCap='round';
+    c.strokeStyle='#2c3448';
+    c.lineWidth=180; c.globalAlpha=1;
+    c.beginPath();
+    track.path.forEach((p,i)=> i? c.lineTo(p[0],p[1]): c.moveTo(p[0],p[1]));
+    c.closePath(); c.stroke();
+
+    // Road asphalt
+    c.strokeStyle='#262f43';
+    c.lineWidth=track.width*2;
+    c.stroke();
+
+    // Edges
+    c.strokeStyle='#cfd9ea11';
+    c.lineWidth=2;
+    c.stroke();
+
+    // Kerbs (start/finish)
+    const s = track.start;
+    const ang = track.startDir;
+    c.save();
+    c.translate(s[0],s[1]);
+    c.rotate(ang+Math.PI/2);
+    for(let i=-track.width;i<track.width;i+=20){
+      c.fillStyle = (Math.floor((i+track.width)/20)%2)?'#e6edf6':'#cc3344';
+      c.fillRect(i,-6,20,12);
+    }
+    c.restore();
+
+    c.restore();
+    return off;
+  }
+
+  // ---------- Game objects ----------
+  class Car {
+    constructor(color, x=0,y=0, ang=0, ai=false){
+      this.x=x; this.y=y; this.ang=ang;
+      this.vx=0; this.vy=0; this.va=0;
+      this.steer=0; this.throttle=0; this.brake=0; this.hand=0;
+      this.color=color; this.ai=ai;
+      this.len=42; this.wid=22;
+      this.lap=0; this.check=0; this.lapTime=0; this.best=Infinity;
+      this.offtrack=0; // 0~1
+      this.name = ai? "BOT":"YOU";
+      this.targetIdx=0; // for AI
+    }
+    reset(x,y,ang){
+      this.x=x; this.y=y; this.ang=ang;
+      this.vx=this.vy=this.va=0;
+      this.steer=this.throttle=this.brake=this.hand=0;
+      this.lap=0; this.check=0; this.lapTime=0; this.offtrack=0;
+    }
+  }
+
+  // ---------- Physics ----------
+  function makePhysics(track){
+    // 參數（會受設定面板影響）
+    let steerK = parseFloat(document.getElementById('steerSens').value);
+    let gripK  = parseFloat(document.getElementById('grip').value);
+
+    function setTuning(){
+      steerK = parseFloat(document.getElementById('steerSens').value);
+      gripK  = parseFloat(document.getElementById('grip').value);
+    }
+
+    const getOnRoad = (x,y)=>{
+      // 距離中心線，>width 視為草地
+      // 找最近段（步長取 8）
+      let best=1e9, idx=0;
+      for(let i=0;i<track.path.length;i+=8){
+        const a=track.path[i], b=track.path[(i+8)%track.path.length];
+        const d = pointSegDist(x,y,a[0],a[1],b[0],b[1]);
+        if(d<best){best=d; idx=i;}
+      }
+      const onRoad = best <= track.width;
+      return {onRoad, idx, dist:best};
+    };
+
+    const tmp=new Float32Array(2);
+    function step(car, dt){
+      // 讀取（玩家 / AI）
+      // 車輛參數
+      const maxSteer = 1.3 * steerK;       // 最大轉向
+      const eng = 900;                      // 引擎力
+      const brakeF = 1000;                  // 煞車力
+      const handF = 1200;                   // 手煞
+      const drag = 0.98;                    // 空氣阻力
+      const roll = 0.995;                   // 滾阻
+      const grip = 30 * gripK;              // 橫向抓地（越大越咬地）
+      const grassMul = 0.55;                // 草地速度乘數
+      const maxSpeed = 38;                  // m/s ~ 136 km/h
+
+      // 座標系
+      const sin = Math.sin(car.ang), cos=Math.cos(car.ang);
+      // 將速度轉到車體坐標
+      const vLong =  cos*car.vx + sin*car.vy;
+      const vLat  = -sin*car.vx + cos*car.vy;
+
+      // 地面判定
+      const onRoad = getOnRoad(car.x,car.y);
+      car.offtrack = onRoad.onRoad? 0 : 1;
+
+      // 力
+      let accLong = car.throttle*eng - car.brake*brakeF*Math.sign(vLong);
+      // 手煞增加側滑
+      const latGrip = grip * (onRoad.onRoad? 1:0.35) * (1 - car.hand*0.6);
+      const accLat = - vLat * latGrip;
+
+      // 速度限制/阻力
+      const spd = Math.hypot(car.vx,car.vy);
+      const spdMul = (onRoad.onRoad? 1:grassMul);
+      const spdCap = maxSpeed*spdMul;
+      const vLong2 = clamp(vLong + accLong*dt/ (200 + 40*Math.abs(vLong)), -spdCap, spdCap);
+
+      // 回到世界坐標
+      const nVx =  cos*vLong2 - sin*(vLat + accLat*dt);
+      const nVy =  sin*vLong2 + cos*(vLat + accLat*dt);
+
+      car.vx = nVx * drag;
+      car.vy = nVy * drag;
+      car.x += car.vx;
+      car.y += car.vy;
+
+      // 轉向（速度相關）
+      const steerEff = (maxSteer * (0.6 + 0.4*clamp(Math.abs(vLong)/25,0,1)));
+      const yawRate = steerEff * car.steer * (vLong/ car.len);
+      car.ang += yawRate;
+
+      // 手煞少量角阻尼
+      car.ang += -car.va*0.02*car.hand;
+      car.va *= 0.96;
+
+      // 檢查點 / 圈數
+      const cp = track.cps[car.check%track.cps.length];
+      // 判斷通過直線：向量點積由負轉正
+      const relx = car.x - cp.p[0], rely = car.y - cp.p[1];
+      const pass = (relx*cp.n[0] + rely*cp.n[1]) > 0;
+      if(pass){
+        car.check++;
+        if((car.check % track.cps.length) === 1){ // 跨過起點
+          if(car.lap>0) car.best = Math.min(car.best, car.lapTime);
+          car.lap++;
+          car.lapTime = 0;
+        }
+      }
+      car.lapTime += dt*1000;
+
+      return onRoad.idx;
+    }
+
+    function pointSegDist(px,py,x1,y1,x2,y2){
+      const dx=x2-x1, dy=y2-y1;
+      const L2=dx*dx+dy*dy ||1;
+      let t = ((px-x1)*dx + (py-y1)*dy)/L2;
+      t=clamp(t,0,1);
+      const x=x1+t*dx, y=y1+t*dy;
+      const ddx=px-x, ddy=py-y;
+      return Math.hypot(ddx,ddy);
+    }
+
+    return {step,setTuning};
+  }
+
+  // ---------- AI ----------
+  function makeAI(track){
+    // 為每台 BOT 設定目標點索引與速度偏好
+    return function drive(bot, idxNear, diff=1){
+      const look = 30; // 往前看的點距
+      bot.targetIdx = (idxNear + look) % track.path.length;
+      const tgt = track.path[bot.targetIdx];
+      const angTo = Math.atan2(tgt[1]-bot.y, tgt[0]-bot.x);
+      let da = ((angTo - bot.ang + Math.PI*3)%(Math.PI*2))-Math.PI;
+      bot.steer = clamp(da*1.2, -1, 1);
+
+      // 速度控制（轉彎越大越減速）
+      const turn = Math.abs(da);
+      const want = (38 * diff) * (1 - clamp(turn/1.2, 0, .55));
+      // 簡單 PID：用手煞+煞車控制
+      const spd = Math.hypot(bot.vx,bot.vy);
+      bot.throttle = spd < want? 1: 0.1;
+      bot.brake = spd > want*1.05? 0.6: 0;
+      bot.hand = turn>0.9? 0.5: 0;
+    }
+  }
+
+  // ---------- Game state ----------
+  let track = makeTrack(1337);
+  let physics = makePhysics(track);
+  const aiBrain = makeAI(track);
+
+  // 背景圖層快取
+  const back = document.createElement('canvas');
+  back.width = 3000; back.height = 3000;
+  drawTrackTo(back, track);
+
+  // Cars
+  let cars=[];
+  const YOU = new Car('#4dd3ff');
+  cars.push(YOU);
+
+  // 起點排列
+  function gridPositions(n){
+    const arr=[];
+    const base = track.start;
+    const ang = track.startDir;
+    for(let i=0;i<n;i++){
+      const row=Math.floor(i/2), side=i%2?-1:1;
+      const offX = Math.cos(ang+Math.PI/2)*side*18;
+      const offY = Math.sin(ang+Math.PI/2)*side*18;
+      const backX = Math.cos(ang+Math.PI)*row*34;
+      const backY = Math.sin(ang+Math.PI)*row*34;
+      arr.push([base[0]+offX+backX, base[1]+offY+backY, ang]);
+    }
+    return arr;
+  }
+
+  // ---------- UI refs ----------
+  const lapNum = document.getElementById('lapNum');
+  const lapTotal = document.getElementById('lapTotal');
+  const lapTime = document.getElementById('lapTime');
+  const bestTime = document.getElementById('bestTime');
+  const speedEl = document.getElementById('speed');
+  const posEl = document.getElementById('pos');
+  const totEl = document.getElementById('total');
+  const countEl = document.getElementById('count');
+  const notice = document.getElementById('notice');
+  const toast = document.getElementById('toast');
+  const panel = document.getElementById('panel');
+
+  const btnStart = document.getElementById('btnStart');
+  const btnPause = document.getElementById('btnPause');
+  const btnSettings = document.getElementById('btnSettings');
+  const lapsSel = document.getElementById('laps');
+  const botsSel = document.getElementById('bots');
+  const diffInp = document.getElementById('difficulty');
+  const steerSens = document.getElementById('steerSens');
+  const qualInp = document.getElementById('quality');
+  const gripInp = document.getElementById('grip');
+  const btnApply = document.getElementById('btnApply');
+
+  function quality(){ return parseFloat(qualInp.value); }
+
+  btnSettings.onclick=()=> panel.classList.toggle('open');
+  btnApply.onclick=()=>{ panel.classList.remove('open'); physics.setTuning(); paused=false; };
+
+  // ---------- Start / Reset ----------
+  let targetLaps = parseInt(lapsSel.value,10);
+  let botCount = parseInt(botsSel.value,10);
+  let aiDiff = parseFloat(diffInp.value);
+  let paused=false, started=false, finished=false;
+  let lastT=now();
+
+  function setupRace(){
+    targetLaps = parseInt(lapsSel.value,10);
+    botCount = parseInt(botsSel.value,10);
+    aiDiff = parseFloat(diffInp.value);
+    lapNum.textContent = 1;
+    lapTotal.textContent = targetLaps;
+    bestTime.textContent = fmt(YOU.best);
+
+    // 重新生成賽道以增加耐玩度
+    track = makeTrack((Math.random()*1e9)|0);
+    physics = makePhysics(track);
+    drawTrackTo(back, track);
+
+    cars = [YOU];
+    for(let i=0;i<botCount;i++){
+      cars.push(new Car('#ffd54d',0,0,0,true));
+    }
+    const grid = gridPositions(cars.length);
+    cars.forEach((c,i)=>{
+      const [x,y,a]=grid[i];
+      c.reset(x,y,a);
+      c.name = c.ai? `BOT ${i}`:'YOU';
+    });
+    started=false; finished=false; countdown(3);
+    totEl.textContent = String(cars.length);
+    notice.textContent = "倒數開始！";
+  }
+
+  function countdown(n){
+    countEl.textContent = n? n:"GO!";
+    countEl.style.opacity=1;
+    const t = setInterval(()=>{
+      n--; countEl.textContent = n? n:"GO!";
+      if(n<0){ clearInterval(t);
+        setTimeout(()=>{ countEl.style.opacity=0; started=true; notice.textContent=""; }, 600);
+      }
+    }, 1000);
+  }
+
+  btnStart.onclick=()=>setupRace();
+  btnPause.onclick=()=>{ paused=!paused; };
+  window.addEventListener('blur',()=>paused=true);
+
+  // 初始
+  setupRace();
+
+  // ---------- Main loop ----------
+  function loop(){
+    requestAnimationFrame(loop);
+    const t = now(); let dt = (t-lastT)/1000; lastT=t;
+    dt = Math.min(dt, 1/30);
+
+    if(paused) { draw(true); return; }
+    if(!started){ draw(true); return; }
+
+    // Input（桌機）
+    const steerKey = (key['a']||key['arrowleft']? -1:0) + (key['d']||key['arrowright']? 1:0);
+    const gasKey   = (key['w']||key['arrowup']? 1:0);
+    const brkKey   = (key['s']||key['arrowdown']? 1:0);
+    const handKey  = (key[' ']? 1:0);
+
+    YOU.steer = clamp((steerKey? steerKey: steer)*1.0, -1, 1);
+    YOU.throttle = clamp(Math.max(gasKey, gas), 0, 1);
+    YOU.brake = clamp(Math.max(brkKey, brake), 0, 1);
+    YOU.hand = handKey? 1: 0;
+
+    // Physics step + AI
+    const idxStore = new Array(cars.length);
+    cars.forEach((c,i)=>{
+      idxStore[i] = physics.step(c, dt);
+    });
+    cars.forEach((c,i)=>{
+      if(c.ai) aiBrain(c, idxStore[i], aiDiff*(0.96+Math.random()*0.08));
+    });
+
+    // 排名
+    const laps = targetLaps;
+    const prog = c=> c.lap*100000 + c.check; // 粗略
+    cars.sort((a,b)=> prog(b)-prog(a));
+    const youPos = cars.indexOf(YOU)+1;
+    posEl.textContent = String(youPos);
+
+    // 狀態
+    lapNum.textContent = String(Math.min(YOU.lap+1, targetLaps));
+    lapTime.textContent = fmt(YOU.lapTime);
+    speedEl.textContent = Math.round(Math.hypot(YOU.vx,YOU.vy)*3.6);
+
+    if(YOU.lap>=laps && !finished){
+      finished=true; started=false; paused=true;
+      bestTime.textContent = fmt(YOU.best);
+      notice.textContent = `Finished! 名次 ${youPos}/${cars.length}`;
+      toastIt('按 Start 重新開始');
+    }
+
+    // Render
+    draw(false);
+  }
+  requestAnimationFrame(loop);
+
+  // ---------- Render function ----------
+  function draw(freeze){
+    const w=cv.width, h=cv.height;
+    ctx.save();
+    ctx.clearRect(0,0,w,h);
+
+    // 相機追蹤
+    const camX = YOU.x, camY=YOU.y, camAng=YOU.ang;
+    // 世界 -> 畫布
+    ctx.translate(w/2, h/2);
+    ctx.scale(DPR, DPR);
+    ctx.rotate(-camAng);
+    ctx.translate(-camX, -camY);
+
+    // 地圖（背景層）
+    ctx.drawImage(back, camX - back.width/2, camY - back.height/2);
+
+    // 影子
+    cars.forEach(c=>{
+      ctx.save();
+      ctx.translate(c.x,c.y);
+      ctx.rotate(c.ang);
+      ctx.fillStyle='rgba(0,0,0,.35)';
+      ctx.fillRect(-c.len/2+3,-c.wid/2+6,c.len,c.wid);
+      ctx.restore();
+    });
+
+    // 車
+    cars.forEach(c=>{
+      ctx.save();
+      ctx.translate(c.x,c.y);
+      ctx.rotate(c.ang);
+      // 車身
+      const grd = ctx.createLinearGradient(-c.len/2,0,c.len/2,0);
+      grd.addColorStop(0,'#0f1629'); grd.addColorStop(1,c.color);
+      ctx.fillStyle=grd;
+      ctx.strokeStyle='#0a0f1f'; ctx.lineWidth=2;
+      roundRect(ctx,-c.len/2,-c.wid/2,c.len,c.wid,5,true,true);
+      // 車窗
+      ctx.fillStyle='rgba(200,230,255,.25)';
+      roundRect(ctx,-6,-c.wid/2+2,12,c.wid-4,3,true,false);
+      // 煞車燈
+      if(c.brake>0.1){
+        ctx.fillStyle='rgba(255,80,80,.9)';
+        ctx.fillRect(-c.len/2-1,-c.wid/2,3,c.wid/2-3);
+        ctx.fillRect(-c.len/2-1,3,3,c.wid/2-3);
+      }
+      // 過草地時塵土
+      if(c.offtrack>0){
+        ctx.globalAlpha=.18;
+        ctx.fillStyle='#b9d8b0';
+        for(let i=0;i<4;i++){
+          ctx.beginPath();
+          ctx.arc(-c.len/2- Math.random()*20, (Math.random()-.5)*c.wid*1.6, Math.random()*3+1, 0, TAU);
+          ctx.fill();
+        }
+        ctx.globalAlpha=1;
+      }
+      ctx.restore();
+    });
+
+    ctx.restore();
+
+    // 迷你地圖
+    drawMini();
+
+    // 倒數、HUD已在 DOM
+  }
+
+  function roundRect(ctx,x,y,w,h,r,fill,stroke){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    if(fill) ctx.fill();
+    if(stroke) ctx.stroke();
+  }
+
+  function drawMini(){
+    mctx.clearRect(0,0,mini.width,mini.height);
+    mctx.save();
+    // Fit
+    mctx.translate(mini.width/2, mini.height/2);
+    const scale = 0.06;
+    mctx.scale(scale, scale);
+
+    // Track
+    mctx.lineJoin='round'; mctx.lineCap='round';
+    mctx.strokeStyle='#2b3a55'; mctx.lineWidth=180;
+    mctx.beginPath(); track.path.forEach((p,i)=> i? mctx.lineTo(p[0],p[1]): mctx.moveTo(p[0],p[1])); mctx.closePath(); mctx.stroke();
+    mctx.strokeStyle='#26324a'; mctx.lineWidth=track.width*2; mctx.stroke();
+
+    // Cars
+    cars.forEach(c=>{
+      mctx.save();
+      mctx.translate(c.x,c.y);
+      mctx.rotate(c.ang);
+      mctx.fillStyle = c===YOU? '#4dd3ff':'#ffd54d';
+      mctx.fillRect(-10,-6,20,12);
+      mctx.restore();
+    });
+
+    mctx.restore();
+  }
+
+  // ---------- Quality change ----------
+  qualInp.addEventListener('input', ()=>{
+    resizeCanvas(quality());
+  });
+
+  // ---------- Controls ----------
+  window.addEventListener('keydown',e=>{
+    if(e.key==='p'||e.key==='P') paused=!paused;
+    if(e.key==='r'||e.key==='R'){ setupRace(); }
+  });
+
+  // ---------- Helpers ----------
+  function toastIt(msg){
+    toast.textContent=msg; toast.style.display='block'; toast.style.opacity=1;
+    setTimeout(()=>{ toast.style.transition='opacity .6s'; toast.style.opacity=0; setTimeout(()=>{toast.style.display='none'; toast.style.transition='';},600); }, 1200);
+  }
+})();
+</script>
+</body>
+</html>
