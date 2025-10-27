@@ -1,0 +1,664 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>SuperTool｜多功能工具程式</title>
+  <meta name="description" content="一頁式多工具：記事、待辦、計算機、單位換算、文字工具、JSON、美化、Base64、正則、時間戳、QR、圖片壓縮、調色盤等；支援離線與主題切換。">
+
+  <!-- Icons & Fonts -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%235B8CFF' d='M8 12a4 4 0 0 1 4-4h40a4 4 0 0 1 4 4v40a4 4 0 0 1-4 4H12a4 4 0 0 1-4-4z'/%3E%3Cpath fill='white' d='M18 20h28v6H18zm0 12h18v6H18zm0 12h28v6H18z'/%3E%3C/svg%3E"/>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+  <style>
+    :root{
+      --bg:#0b1020; --card:#121a32; --ink:#dfe7ff; --muted:#a9b4d0; --line:#223055; --brand:#5B8CFF; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
+      --radius:14px; --shadow:0 6px 24px rgba(0,0,0,.25);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      --sans: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      --fz: 15px;
+    }
+    [data-theme="light"]{
+      --bg:#f7f9ff; --card:#ffffff; --ink:#0a1433; --muted:#4b5567; --line:#e6ecff; --brand:#3b73ff;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:
+      radial-gradient(1200px 600px at 10% -20%, rgba(91,140,255,.18), transparent 60%),
+      radial-gradient(1400px 700px at 120% 10%, rgba(139,92,246,.16), transparent 60%),
+      var(--bg);
+      color:var(--ink); font-family:var(--sans); font-size:var(--fz);
+    }
+    a{color:var(--brand); text-decoration:none}
+    .container{max-width:1200px; margin:0 auto; padding:18px}
+    header{
+      position:sticky; top:0; z-index:10; backdrop-filter:saturate(1.4) blur(8px);
+      background:linear-gradient(to bottom, rgba(0,0,0,.25), rgba(0,0,0,0)) ;
+      padding:12px 0 8px; border-bottom:1px solid rgba(255,255,255,.06);
+    }
+    .hero{
+      display:flex; gap:14px; align-items:center; justify-content:space-between;
+    }
+    .brand{
+      display:flex; gap:10px; align-items:center; font-weight:800; letter-spacing:.5px;
+    }
+    .brand i{font-size:22px;color:var(--brand)}
+    .searchbar{
+      flex:1; display:flex; gap:8px; align-items:center; background:var(--card); border:1px solid var(--line);
+      padding:10px 12px; border-radius:999px; box-shadow:var(--shadow);
+    }
+    .searchbar input{
+      flex:1; border:none; outline:none; background:transparent; color:var(--ink); font-size:15px;
+    }
+    .toolbar{display:flex; gap:8px; align-items:center}
+    .btn{border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:10px; padding:8px 12px; cursor:pointer}
+    .btn:hover{border-color:var(--brand)}
+    .grid{
+      display:grid; gap:16px; margin-top:16px;
+      grid-template-columns: repeat(12, 1fr);
+    }
+    .card{
+      grid-column: span 12; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow);
+    }
+    @media (min-width: 900px){
+      .span-4{grid-column: span 4}
+      .span-6{grid-column: span 6}
+      .span-8{grid-column: span 8}
+      .span-12{grid-column: span 12}
+    }
+    .card h3{margin:0 0 10px; font-size:16px; display:flex; align-items:center; gap:8px}
+    .row{display:flex; gap:10px; flex-wrap:wrap}
+    .row > *{flex:1}
+    textarea, input, select{
+      width:100%; padding:10px 12px; background:#0c1530; color:var(--ink);
+      border:1px solid var(--line); border-radius:10px; outline:none; font-family:var(--mono)
+    }
+    [data-theme="light"] textarea, [data-theme="light"] input, [data-theme="light"] select{background:#f2f6ff; color:#223}
+    .mini{font-size:12px; color:var(--muted)}
+    .pill{padding:4px 8px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid var(--line)}
+    .list{display:flex; flex-direction:column; gap:8px}
+    .list .item{display:flex; gap:10px; align-items:center; padding:10px; border:1px dashed var(--line); border-radius:10px}
+    .kbd{font-family:var(--mono); border:1px solid var(--line); border-bottom-width:3px; padding:2px 6px; border-radius:6px}
+    .hl{background:rgba(91,140,255,.15); border:1px solid rgba(91,140,255,.35); padding:2px 6px; border-radius:6px}
+    .ghost{opacity:.55}
+    .flex{display:flex; gap:8px; align-items:center}
+    .right{margin-left:auto}
+    .danger{color:var(--bad)} .ok{color:var(--ok)} .warn{color:var(--warn)}
+    .hidden{display:none !important}
+    .qr{display:flex; justify-content:center; padding:12px}
+    canvas{max-width:100%}
+    .color-swatch{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);cursor:pointer}
+    .chips{display:flex; gap:6px; flex-wrap:wrap}
+    .chips .chip{border:1px solid var(--line); padding:6px 10px; border-radius:999px; cursor:pointer}
+    footer{padding:20px 0; color:var(--muted); text-align:center}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container hero">
+      <div class="brand"><i class="bi bi-tools"></i><span>SuperTool</span><span class="pill mini">PWA • 離線可用</span></div>
+      <div class="searchbar" role="search" aria-label="全域搜尋（Ctrl/⌘+K）">
+        <i class="bi bi-search"></i>
+        <input id="omnibox" placeholder="Ctrl/⌘+K 搜尋工具或輸入指令（例如：calc 1+2*3、qr https://...）" autocomplete="off">
+        <button class="btn" id="btn-run"><i class="bi bi-caret-right-fill"></i></button>
+      </div>
+      <div class="toolbar">
+        <button class="btn" id="btn-theme"><i class="bi bi-moon-stars"></i></button>
+        <button class="btn" id="btn-backup"><i class="bi bi-cloud-arrow-down"></i></button>
+        <button class="btn" id="btn-restore"><i class="bi bi-cloud-arrow-up"></i></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="grid">
+
+      <!-- Notes -->
+      <section class="card span-8" id="tool-notes">
+        <h3><i class="bi bi-journal-text"></i> 記事本 <span class="mini">（自動儲存：Ctrl/⌘+S）</span></h3>
+        <textarea id="notes" rows="10" placeholder="在這裡寫下你的想法、代辦、會議紀錄……"></textarea>
+        <div class="flex" style="margin-top:8px">
+          <span class="mini">字數：<span id="notes-count">0</span></span>
+          <div class="right flex">
+            <button class="btn" id="notes-clear"><i class="bi bi-eraser"></i> 清空</button>
+            <button class="btn" id="notes-copy"><i class="bi bi-clipboard"></i> 複製</button>
+            <button class="btn" id="notes-download"><i class="bi bi-download"></i> 下載TXT</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Todos -->
+      <section class="card span-4" id="tool-todos">
+        <h3><i class="bi bi-check2-square"></i> 待辦清單</h3>
+        <div class="row">
+          <input id="todo-input" placeholder="新增待辦後 Enter">
+          <select id="todo-filter" style="max-width:160px">
+            <option value="all">全部</option>
+            <option value="open">未完成</option>
+            <option value="done">已完成</option>
+          </select>
+        </div>
+        <div class="list" id="todo-list" style="margin-top:8px"></div>
+        <div class="flex" style="margin-top:10px">
+          <button class="btn" id="todo-export"><i class="bi bi-filetype-json"></i> 匯出</button>
+          <label class="btn" for="todo-import"><i class="bi bi-upload"></i> 匯入</label>
+          <input id="todo-import" type="file" accept="application/json" class="hidden">
+          <button class="btn danger right" id="todo-clear"><i class="bi bi-trash3"></i> 全清</button>
+        </div>
+      </section>
+
+      <!-- Calculator -->
+      <section class="card span-4" id="tool-calc">
+        <h3><i class="bi bi-calculator"></i> 計算機</h3>
+        <input id="calc-exp" placeholder="輸入運算式，例如： (1+2)*3/4 ** 2">
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="calc-eval">計算</button>
+          <span class="pill mini">支援：+ - * / % ** ( )</span>
+        </div>
+        <div class="list" style="margin-top:8px">
+          <div class="item"><span class="mini">結果</span><span class="right hl" id="calc-out">—</span></div>
+          <div class="item"><span class="mini">歷史</span><span class="mini right" id="calc-hist">無</span></div>
+        </div>
+      </section>
+
+      <!-- Converter -->
+      <section class="card span-4" id="tool-convert">
+        <h3><i class="bi bi-arrow-left-right"></i> 單位換算</h3>
+        <div class="row">
+          <select id="conv-type">
+            <option value="length">長度</option>
+            <option value="weight">重量</option>
+            <option value="temp">溫度</option>
+          </select>
+          <input id="conv-in" type="number" placeholder="輸入數值">
+          <select id="conv-from"></select>
+          <select id="conv-to"></select>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="conv-run">換算</button>
+          <span class="right hl" id="conv-out">—</span>
+        </div>
+      </section>
+
+      <!-- Text tools -->
+      <section class="card span-8" id="tool-text">
+        <h3><i class="bi bi-body-text"></i> 文字工具</h3>
+        <div class="row">
+          <textarea id="txt-in" rows="8" placeholder="貼上文字…"></textarea>
+        </div>
+        <div class="chips" style="margin-top:8px">
+          <button class="chip" data-tcmd="upper">大寫</button>
+          <button class="chip" data-tcmd="lower">小寫</button>
+          <button class="chip" data-tcmd="title">每字首大寫</button>
+          <button class="chip" data-tcmd="trim">去前後空白</button>
+          <button class="chip" data-tcmd="dedup">行去重</button>
+          <button class="chip" data-tcmd="uniqsort">行去重+排序</button>
+          <button class="chip" data-tcmd="slug">Slug</button>
+          <button class="chip" data-tcmd="wc">字數統計</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <textarea id="txt-out" rows="8" placeholder="輸出結果…" readonly></textarea>
+        </div>
+        <div class="flex" style="margin-top:8px">
+          <span class="mini" id="txt-stats">—</span>
+          <button class="btn right" id="txt-copy"><i class="bi bi-clipboard"></i> 複製</button>
+        </div>
+      </section>
+
+      <!-- JSON / Base64 / URL / Regex -->
+      <section class="card span-6" id="tool-json">
+        <h3><i class="bi bi-braces"></i> JSON 美化/驗證</h3>
+        <div class="row">
+          <textarea id="json-in" rows="8" placeholder='貼入 JSON…'></textarea>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="json-pretty">美化</button>
+          <button class="btn" id="json-min">壓縮</button>
+          <button class="btn" id="json-validate">驗證</button>
+          <span class="right mini" id="json-msg">—</span>
+        </div>
+        <textarea id="json-out" rows="8" placeholder="輸出…" readonly style="margin-top:8px"></textarea>
+      </section>
+
+      <section class="card span-6" id="tool-enc">
+        <h3><i class="bi bi-shuffle"></i> 編碼工具（Base64 / URL）</h3>
+        <div class="row">
+          <textarea id="enc-in" rows="6" placeholder="輸入文字…"></textarea>
+        </div>
+        <div class="chips" style="margin-top:8px">
+          <button class="chip" data-ecmd="b64e">Base64 編碼</button>
+          <button class="chip" data-ecmd="b64d">Base64 解碼</button>
+          <button class="chip" data-ecmd="urle">URL 編碼</button>
+          <button class="chip" data-ecmd="urld">URL 解碼</button>
+        </div>
+        <textarea id="enc-out" rows="6" placeholder="輸出…" readonly style="margin-top:8px"></textarea>
+        <div class="flex" style="margin-top:8px">
+          <button class="btn right" id="enc-copy"><i class="bi bi-clipboard"></i> 複製</button>
+        </div>
+      </section>
+
+      <section class="card span-6" id="tool-regex">
+        <h3><i class="bi bi-funnel"></i> 正則測試</h3>
+        <div class="row"><input id="re-pattern" placeholder="正則，例如：\\b\\w+@\\w+\\.\\w+\\b"><input id="re-flags" placeholder="旗標，例如：gmi"></div>
+        <div class="row" style="margin-top:8px"><textarea id="re-text" rows="8" placeholder="貼上測試文字…"></textarea></div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="re-run">測試</button>
+          <span class="right mini" id="re-count">—</span>
+        </div>
+        <textarea id="re-out" rows="8" readonly placeholder="結果/高亮…（命中以 [] 標示）" style="margin-top:8px"></textarea>
+      </section>
+
+      <section class="card span-6" id="tool-time">
+        <h3><i class="bi bi-clock-history"></i> 時間戳 ↔ 日期</h3>
+        <div class="row">
+          <input id="ts-in" placeholder="UNIX 秒/毫秒">
+          <input id="date-in" type="datetime-local">
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="ts-to-date">時間戳→日期</button>
+          <button class="btn" id="date-to-ts">日期→時間戳</button>
+          <span class="right mini" id="ts-msg">—</span>
+        </div>
+      </section>
+
+      <!-- QR -->
+      <section class="card span-6" id="tool-qr">
+        <h3><i class="bi bi-qr-code"></i> QR Code 產生器</h3>
+        <div class="row"><input id="qr-text" placeholder="輸入文字或網址"><input id="qr-size" type="number" value="256" min="64" max="1024"></div>
+        <div class="qr"><canvas id="qr-canvas"></canvas></div>
+        <div class="flex">
+          <button class="btn" id="qr-make">產生</button>
+          <button class="btn right" id="qr-download"><i class="bi bi-download"></i> 下載PNG</button>
+        </div>
+      </section>
+
+      <!-- Image -->
+      <section class="card span-6" id="tool-image">
+        <h3><i class="bi bi-image"></i> 圖片壓縮/縮放（前端離線）</h3>
+        <div class="row">
+          <input id="img-file" type="file" accept="image/*">
+          <input id="img-width" type="number" placeholder="寬(px)；空白=原尺寸">
+          <input id="img-quality" type="number" step="0.05" min="0.1" max="1" value="0.9" placeholder="品質 0.1~1">
+        </div>
+        <canvas id="img-canvas" style="margin-top:8px; max-height:360px"></canvas>
+        <div class="flex" style="margin-top:8px">
+          <span class="mini" id="img-info">未載入</span>
+          <button class="btn right" id="img-download"><i class="bi bi-download"></i> 下載JPEG</button>
+        </div>
+      </section>
+
+      <!-- Colors -->
+      <section class="card span-6" id="tool-colors">
+        <h3><i class="bi bi-palette2"></i> 調色盤</h3>
+        <div class="row">
+          <input type="color" id="col-picker" value="#5B8CFF">
+          <input id="col-hex" placeholder="#5B8CFF">
+          <input id="col-rgb" placeholder="rgb(91,140,255)">
+        </div>
+        <div class="chips" id="col-swatches" style="margin-top:8px"></div>
+        <div class="flex" style="margin-top:8px">
+          <button class="btn" id="col-add"><i class="bi bi-plus"></i> 收藏</button>
+          <button class="btn right danger" id="col-clear"><i class="bi bi-trash3"></i> 清空</button>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section class="card span-12" id="tool-settings">
+        <h3><i class="bi bi-gear"></i> 設定</h3>
+        <div class="row">
+          <select id="set-theme" style="max-width:180px">
+            <option value="auto">跟隨系統</option>
+            <option value="dark">深色</option>
+            <option value="light">淺色</option>
+          </select>
+          <input id="set-fz" type="number" min="12" max="20" value="15" style="max-width:120px" placeholder="字級 px">
+          <button class="btn" id="set-apply">套用</button>
+          <span class="mini">快捷鍵：<span class="kbd">Ctrl/⌘+K</span> 搜尋、<span class="kbd">Ctrl/⌘+S</span> 儲存記事、<span class="kbd">/</span> 焦點搜尋、<span class="kbd">Esc</span> 清除搜尋</span>
+        </div>
+      </section>
+
+    </div>
+    <footer>© <span id="y"></span> SuperTool — 單檔版（index.html） • 可離線</footer>
+  </main>
+
+  <!-- QRCode lib -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+  <script>
+  ;(()=>{
+    const $=s=>document.querySelector(s);
+    const $$=s=>Array.from(document.querySelectorAll(s));
+    const store={
+      get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},
+      set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))
+    };
+
+    // ---- Theme / Settings ----
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const applyTheme = (mode)=>{
+      if(mode==='auto'){ document.documentElement.removeAttribute('data-theme'); document.documentElement.dataset.theme = prefersDark.matches?'':'light'; }
+      else document.documentElement.dataset.theme=mode;
+      store.set('theme', mode);
+    };
+    const applyFz = (px)=>{ document.documentElement.style.setProperty('--fz', (px||15)+'px'); store.set('fz', px||15); };
+    applyTheme(store.get('theme','auto')); applyFz(store.get('fz',15));
+
+    $('#btn-theme').onclick=()=>{
+      const cur=store.get('theme','auto');
+      const next= cur==='dark'?'light': cur==='light'?'auto':'dark';
+      applyTheme(next);
+    };
+    $('#set-apply').onclick=()=>{
+      applyTheme($('#set-theme').value);
+      applyFz(parseInt($('#set-fz').value||15,10));
+    };
+    $('#set-theme').value=store.get('theme','auto');
+    $('#set-fz').value=store.get('fz',15);
+
+    // ---- Omnibox / Commands ----
+    const omnibox = $('#omnibox'), btnRun = $('#btn-run');
+    const runCmd=(raw)=>{
+      const s=(raw||'').trim(); if(!s) return;
+      // commands: calc, qr, go/url, json, b64e/b64d, ts, now
+      const [cmd, ...rest]=s.split(/\s+/);
+      const arg=rest.join(' ');
+      if(cmd==='calc'){ $('#tool-calc').scrollIntoView({behavior:'smooth'}); $('#calc-exp').value=arg; evalCalc(); }
+      else if(cmd==='qr'){ $('#tool-qr').scrollIntoView({behavior:'smooth'}); $('#qr-text').value=arg; makeQR(); }
+      else if(cmd==='go' || /^https?:\/\//.test(cmd)){ const url = cmd==='go'? arg : s; window.open(url,'_blank'); }
+      else if(cmd==='json'){ $('#tool-json').scrollIntoView({behavior:'smooth'}); $('#json-in').value=arg; prettyJSON(); }
+      else if(cmd==='b64e'){ $('#enc-in').value=arg; encRun('b64e'); }
+      else if(cmd==='b64d'){ $('#enc-in').value=arg; encRun('b64d'); }
+      else if(cmd==='now'){ const t=Date.now(); omnibox.value=''; alert(new Date(t).toLocaleString()); }
+      else { // fallback: web search
+        window.open('https://duckduckgo.com/?q='+encodeURIComponent(s),'_blank');
+      }
+    };
+    btnRun.onclick=()=>runCmd(omnibox.value);
+    omnibox.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){ runCmd(omnibox.value); }
+      if(e.key==='Escape'){ omnibox.value=''; }
+    });
+    window.addEventListener('keydown',e=>{
+      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){ e.preventDefault(); omnibox.focus(); }
+      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){ e.preventDefault(); saveNotes(); }
+      if(e.key==='/'){ if(document.activeElement!==omnibox){ e.preventDefault(); omnibox.focus(); } }
+    });
+
+    // ---- Notes ----
+    const notesEl=$('#notes'), notesCount=$('#notes-count');
+    notesEl.value=store.get('notes','');
+    const updateNotesCount=()=>notesCount.textContent=notesEl.value.length;
+    const saveNotes=()=>store.set('notes', notesEl.value);
+    updateNotesCount();
+    notesEl.addEventListener('input',()=>{updateNotesCount(); saveNotes();});
+    $('#notes-clear').onclick=()=>{ if(confirm('清空記事？')){ notesEl.value=''; saveNotes(); updateNotesCount();}};
+    $('#notes-copy').onclick=async()=>{ await navigator.clipboard.writeText(notesEl.value); toast('已複製記事'); };
+    $('#notes-download').onclick=()=>downloadText('notes.txt', notesEl.value);
+
+    // ---- Todos ----
+    let todos = store.get('todos',[]);
+    const listEl = $('#todo-list'), filterEl=$('#todo-filter'), inputEl=$('#todo-input');
+    const renderTodos=()=>{
+      listEl.innerHTML='';
+      const filter=filterEl.value;
+      todos.forEach((t,i)=>{
+        if(filter==='open' && t.done) return;
+        if(filter==='done' && !t.done) return;
+        const div=document.createElement('div'); div.className='item'; div.draggable=true;
+        div.innerHTML = `
+          <input type="checkbox" ${t.done?'checked':''} data-i="${i}">
+          <div class="flex" style="gap:6px;flex:1">
+            <span class="pill mini">${t.id}</span>
+            <span style="text-decoration:${t.done?'line-through':'none'}">${escapeHtml(t.text)}</span>
+          </div>
+          <button class="btn" data-edit="${i}"><i class="bi bi-pencil"></i></button>
+          <button class="btn danger" data-del="${i}"><i class="bi bi-x"></i></button>`;
+        // drag reorder
+        div.addEventListener('dragstart',e=>{ e.dataTransfer.setData('text/plain',i); div.classList.add('ghost');});
+        div.addEventListener('dragend',()=>div.classList.remove('ghost'));
+        div.addEventListener('dragover',e=>e.preventDefault());
+        div.addEventListener('drop',e=>{
+          e.preventDefault();
+          const from=+e.dataTransfer.getData('text/plain'); const to=i;
+          if(from===to) return;
+          const item=todos.splice(from,1)[0]; todos.splice(to,0,item); persistTodos(); renderTodos();
+        });
+        listEl.appendChild(div);
+      });
+    };
+    const persistTodos=()=>store.set('todos', todos);
+    inputEl.addEventListener('keydown',e=>{
+      if(e.key==='Enter' && inputEl.value.trim()){
+        todos.unshift({id: Date.now().toString(36).slice(-6), text:inputEl.value.trim(), done:false});
+        inputEl.value=''; persistTodos(); renderTodos();
+      }
+    });
+    listEl.addEventListener('click',e=>{
+      const i=e.target.closest('[data-del]')?.dataset.del;
+      if(i){ todos.splice(+i,1); persistTodos(); renderTodos(); return; }
+      const ei=e.target.closest('[data-edit]')?.dataset.edit;
+      if(ei){ const nv=prompt('編輯待辦', todos[ei].text); if(nv!=null){ todos[ei].text=nv; persistTodos(); renderTodos(); } return; }
+      const ci=e.target.closest('input[type="checkbox"]')?.dataset.i;
+      if(ci){ todos[ci].done = !todos[ci].done; persistTodos(); renderTodos(); }
+    });
+    filterEl.onchange=renderTodos;
+    $('#todo-clear').onclick=()=>{ if(confirm('確定清空所有待辦？')){ todos=[]; persistTodos(); renderTodos(); }};
+    $('#todo-export').onclick=()=>downloadText('todos.json', JSON.stringify(todos,null,2));
+    $('#todo-import').onchange=async(e)=>{
+      const f=e.target.files[0]; if(!f) return;
+      const txt=await f.text();
+      try{ const arr=JSON.parse(txt); if(Array.isArray(arr)){ todos=arr; persistTodos(); renderTodos();} else throw 0; }
+      catch{ alert('匯入失敗：JSON 格式不正確');}
+      e.target.value='';
+    };
+    renderTodos();
+
+    // ---- Calculator ----
+    const expEl=$('#calc-exp'), outEl=$('#calc-out'), histEl=$('#calc-hist');
+    let hist = store.get('calc_hist',[]);
+    const showHist=()=>histEl.textContent = hist.slice(0,5).join(' | ') || '無';
+    const safeEval=(s)=>{
+      if(!/^[\d\s+\-*/().%]*\**\*?\s*\d*$/g.test(s.replace(/[\d.]/g,'D'))){} // loose gate
+      // eslint-disable-next-line no-new-func
+      return Function('"use strict"; return ('+s+')')();
+    };
+    const evalCalc=()=>{
+      const s=expEl.value.trim(); if(!s){ outEl.textContent='—'; return; }
+      try{
+        const v = safeEval(s);
+        outEl.textContent = String(v);
+        hist.unshift(s+' = '+v); hist=hist.slice(0,20); store.set('calc_hist', hist); showHist();
+      }catch{ outEl.textContent='錯誤';}
+    };
+    $('#calc-eval').onclick=evalCalc; expEl.addEventListener('keydown',e=>{ if(e.key==='Enter') evalCalc();});
+    showHist();
+
+    // ---- Converter ----
+    const units={
+      length:{ base:'m', map:{'mm':.001,'cm':.01,'m':1,'km':1000,'in':0.0254,'ft':0.3048,'yd':0.9144,'mi':1609.344 } },
+      weight:{ base:'g', map:{'mg':.001,'g':1,'kg':1000,'lb':453.59237,'oz':28.349523125} },
+      temp:{ base:'C', map:{'C':1,'F':1,'K':1} }
+    };
+    const convType=$('#conv-type'), convIn=$('#conv-in'), convFrom=$('#conv-from'), convTo=$('#conv-to'), convOut=$('#conv-out');
+    const fillUnits=()=>{
+      const t=convType.value; const m = units[t].map; const opts=Object.keys(m).map(u=>`<option>${u}</option>`).join('');
+      convFrom.innerHTML=opts; convTo.innerHTML=opts; convFrom.value=Object.keys(m)[0]; convTo.value=Object.keys(m)[1]||Object.keys(m)[0];
+    };
+    convType.onchange=fillUnits; fillUnits();
+    const convert=()=>{
+      const t=convType.value; const x=parseFloat(convIn.value); if(Number.isNaN(x)){ convOut.textContent='—'; return; }
+      let v=0;
+      if(t!=='temp'){ const map=units[t].map; const base = x * map[convFrom.value]; v = base / map[convTo.value]; }
+      else{
+        const f=convFrom.value, to=convTo.value; const C = f==='C'? x : f==='F'? (x-32)*5/9 : x-273.15;
+        v = to==='C'? C : to==='F'? (C*9/5)+32 : C+273.15;
+      }
+      convOut.textContent = String(v);
+    };
+    $('#conv-run').onclick=convert;
+
+    // ---- Text tools ----
+    const tIn=$('#txt-in'), tOut=$('#txt-out'), tStats=$('#txt-stats');
+    const tcmd=(cmd)=>{
+      const s=tIn.value; let o=s;
+      const lines=()=>s.split(/\r?\n/);
+      if(cmd==='upper') o=s.toUpperCase();
+      if(cmd==='lower') o=s.toLowerCase();
+      if(cmd==='title') o=s.replace(/\b(\p{L})(\p{L}*)/gu,(a,h,rest)=>h.toLocaleUpperCase()+rest.toLocaleLowerCase());
+      if(cmd==='trim') o=s.trim();
+      if(cmd==='dedup') o=Array.from(new Set(lines())).join('\n');
+      if(cmd==='uniqsort') o=Array.from(new Set(lines().filter(x=>x.trim()!==''))).sort(Intl.Collator().compare).join('\n');
+      if(cmd==='slug') o=s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+      if(cmd==='wc'){ const chars=s.length, words=(s.match(/\S+/g)||[]).length, linesN=lines().length; tStats.textContent=`行:${linesN}  字:${chars}  詞:${words}`; }
+      tOut.value=o; if(cmd!=='wc'){ tStats.textContent=`輸出長度：${o.length}`; }
+    };
+    $$('#tool-text .chip').forEach(b=>b.onclick=()=>tcmd(b.dataset.tcmd));
+    $('#txt-copy').onclick=()=>navigator.clipboard.writeText(tOut.value).then(()=>toast('已複製'));
+
+    // ---- JSON ----
+    const jIn=$('#json-in'), jOut=$('#json-out'), jMsg=$('#json-msg');
+    const prettyJSON=()=>{ try{ jOut.value=JSON.stringify(JSON.parse(jIn.value),null,2); jMsg.textContent='OK'; jMsg.className='mini ok'; }catch(e){ jMsg.textContent='解析錯誤'; jMsg.className='mini danger'; } };
+    const minJSON=()=>{ try{ jOut.value=JSON.stringify(JSON.parse(jIn.value)); jMsg.textContent='OK'; jMsg.className='mini ok'; }catch(e){ jMsg.textContent='解析錯誤'; jMsg.className='mini danger'; } };
+    const valJSON=()=>{ try{ JSON.parse(jIn.value); jMsg.textContent='有效 JSON'; jMsg.className='mini ok'; }catch{ jMsg.textContent='無效 JSON'; jMsg.className='mini danger'; } };
+    $('#json-pretty').onclick=prettyJSON; $('#json-min').onclick=minJSON; $('#json-validate').onclick=valJSON;
+
+    // ---- Encode ----
+    const eIn=$('#enc-in'), eOut=$('#enc-out');
+    const encRun=(cmd)=>{
+      try{
+        if(cmd==='b64e') eOut.value=btoa(unescape(encodeURIComponent(eIn.value)));
+        if(cmd==='b64d') eOut.value=decodeURIComponent(escape(atob(eIn.value)));
+        if(cmd==='urle') eOut.value=encodeURIComponent(eIn.value);
+        if(cmd==='urld') eOut.value=decodeURIComponent(eIn.value);
+      }catch{ eOut.value='錯誤';}
+    };
+    $$('#tool-enc .chip').forEach(b=>b.onclick=()=>encRun(b.dataset.ecmd));
+    $('#enc-copy').onclick=()=>navigator.clipboard.writeText(eOut.value).then(()=>toast('已複製'));
+
+    // ---- Regex ----
+    const reP=$('#re-pattern'), reF=$('#re-flags'), reT=$('#re-text'), reOut=$('#re-out'), reCount=$('#re-count');
+    $('#re-run').onclick=()=>{
+      let pat=reP.value, flags=reF.value; try{
+        const re=new RegExp(pat, flags.includes('g')?flags:flags+'g');
+        let cnt=0; const out=reT.value.replace(re, m=>{ cnt++; return '['+m+']'; });
+        reOut.value=out; reCount.textContent='命中：'+cnt;
+      }catch{ reOut.value='正則錯誤'; reCount.textContent='—'; }
+    };
+
+    // ---- Time ----
+    const tsIn=$('#ts-in'), dtIn=$('#date-in'), tsMsg=$('#ts-msg');
+    $('#ts-to-date').onclick=()=>{
+      let v=tsIn.value.trim(); if(!v) return;
+      if(/^\d+$/.test(v)){ if(v.length>11) v = +v; else v = +v*1000; }
+      const d=new Date(v); if(isNaN(+d)){ tsMsg.textContent='格式錯誤'; tsMsg.className='mini danger'; return; }
+      dtIn.value = new Date(+d - (new Date().getTimezoneOffset()*60000)).toISOString().slice(0,16);
+      tsMsg.textContent='OK'; tsMsg.className='mini ok';
+    };
+    $('#date-to-ts').onclick=()=>{
+      const v=dtIn.value; if(!v){ tsMsg.textContent='請輸入日期'; tsMsg.className='mini warn'; return; }
+      const t = new Date(v).getTime(); tsIn.value = Math.floor(t/1000); tsMsg.textContent='OK（秒）'; tsMsg.className='mini ok';
+    };
+
+    // ---- QR ----
+    const qrCanvas=$('#qr-canvas');
+    function makeQR(){
+      const text=$('#qr-text').value||'';
+      const size=Math.max(64, Math.min(1024, parseInt($('#qr-size').value||256,10)));
+      const c=qrCanvas; const ctx=c.getContext('2d'); c.width=size; c.height=size; ctx.clearRect(0,0,size,size);
+      QRCode.toCanvas(c, text, {width:size, margin:1, color:{dark:'#0b1020', light:'#fff'}}, (err)=>{ if(err) toast('生成失敗'); });
+    }
+    $('#qr-make').onclick=makeQR;
+    $('#qr-download').onclick=()=>downloadCanvas(qrCanvas,'qrcode.png');
+
+    // ---- Image ----
+    const imgFile=$('#img-file'), imgCanvas=$('#img-canvas'), imgInfo=$('#img-info');
+    imgFile.onchange=()=>{
+      const f=imgFile.files[0]; if(!f) return;
+      const url=URL.createObjectURL(f); const img=new Image(); img.onload=()=>{
+        const w=parseInt($('#img-width').value||img.width,10); const q=parseFloat($('#img-quality').value||0.9);
+        const h=Math.round(img.height*(w/img.width));
+        imgCanvas.width=w; imgCanvas.height=h;
+        const ctx=imgCanvas.getContext('2d'); ctx.drawImage(img,0,0,w,h);
+        imgInfo.textContent=`原始 ${img.width}x${img.height} → 目標 ${w}x${h}，品質 ${q}`;
+        URL.revokeObjectURL(url);
+      }; img.src=url;
+    };
+    $('#img-download').onclick=()=>{
+      const q=parseFloat($('#img-quality').value||0.9); downloadCanvas(imgCanvas, 'image-compressed.jpg', 'image/jpeg', q);
+    };
+
+    // ---- Colors ----
+    const colPick=$('#col-picker'), colHex=$('#col-hex'), colRgb=$('#col-rgb'), colBox=$('#col-swatches');
+    let swatches = store.get('swatches', ['#5B8CFF','#8B5CF6','#22C55E','#F59E0B','#EF4444']);
+    const renderSwatches=()=>{
+      colBox.innerHTML=''; swatches.forEach((c,i)=>{
+        const wrap=document.createElement('div'); wrap.className='flex'; wrap.style.alignItems='center';
+        const s=document.createElement('div'); s.className='color-swatch'; s.style.background=c; s.title=c;
+        s.onclick=()=>{ colPick.value=c; colHex.value=c; colRgb.value=hexToRgb(c); };
+        const del=document.createElement('button'); del.className='btn danger'; del.innerHTML='<i class="bi bi-x"></i>'; del.onclick=()=>{ swatches.splice(i,1); persist(); renderSwatches(); };
+        wrap.appendChild(s); wrap.appendChild(document.createTextNode(' '+c+' ')); wrap.appendChild(del);
+        colBox.appendChild(wrap);
+      });
+    };
+    const persist=()=>store.set('swatches', swatches);
+    $('#col-add').onclick=()=>{
+      const hx=(colHex.value||colPick.value||'').trim(); if(!/^#?[0-9a-f]{6}$/i.test(hx.replace('#',''))){ toast('格式錯誤'); return; }
+      const c = '#'+hx.replace('#','').toUpperCase(); if(!swatches.includes(c)) swatches.unshift(c); persist(); renderSwatches();
+    };
+    $('#col-clear').onclick=()=>{ if(confirm('清空收藏色？')){ swatches=[]; persist(); renderSwatches(); } };
+    colPick.oninput=()=>{ colHex.value=colPick.value.toUpperCase(); colRgb.value=hexToRgb(colPick.value); };
+    colHex.oninput=()=>{ const v=colHex.value.trim(); if(/^#?[0-9a-f]{6}$/i.test(v.replace('#',''))){ const c='#'+v.replace('#',''); colPick.value=c; colRgb.value=hexToRgb(c); } };
+    renderSwatches();
+
+    // ---- Backup / Restore ----
+    $('#btn-backup').onclick=()=>{
+      const data={notes:store.get('notes',''), todos:store.get('todos',[]), swatches, theme:store.get('theme','auto'), fz:store.get('fz',15), calc_hist:store.get('calc_hist',[])};
+      downloadText('supertool-backup.json', JSON.stringify(data,null,2));
+    };
+    $('#btn-restore').onclick=async()=>{
+      const inp=document.createElement('input'); inp.type='file'; inp.accept='application/json';
+      inp.onchange=async()=>{ const f=inp.files[0]; if(!f) return; const txt=await f.text(); try{
+        const d=JSON.parse(txt);
+        Object.entries(d).forEach(([k,v])=>store.set(k,v));
+        // reload state
+        notesEl.value=d.notes||''; updateNotesCount();
+        todos=d.todos||[]; renderTodos();
+        swatches=d.swatches||[]; renderSwatches();
+        applyTheme(d.theme||'auto'); applyFz(d.fz||15); hist=d.calc_hist||[]; showHist();
+        toast('還原完成，部分設定已套用');
+      }catch{ alert('還原失敗：檔案格式錯誤'); } };
+      inp.click();
+    };
+
+    // ---- Helpers ----
+    function toast(msg){ const d=document.createElement('div'); d.textContent=msg; d.style.cssText='position:fixed;right:16px;bottom:16px;background:#0b1020;border:1px solid var(--line);padding:10px 12px;border-radius:10px;z-index:99;box-shadow:var(--shadow)'; document.body.appendChild(d); setTimeout(()=>d.remove(),1800); }
+    function downloadText(name, text){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:'text/plain'})); a.download=name; a.click(); }
+    function downloadCanvas(c,name,type='image/png',quality=1){ c.toBlob(b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click(); }, type, quality); }
+    function escapeHtml(s){ return s.replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+    function hexToRgb(h){ const x=h.replace('#',''); const r=parseInt(x.slice(0,2),16), g=parseInt(x.slice(2,4),16), b=parseInt(x.slice(4,6),16); return `rgb(${r}, ${g}, ${b})`; }
+
+    // ---- Footer year ----
+    $('#y').textContent = new Date().getFullYear();
+
+    // ---- PWA / Offline: inline Service Worker via Blob ----
+    (function registerSW(){
+      if(!('serviceWorker' in navigator)) return;
+      const swCode = `
+        const CACHE='supertool-cache-v1';
+        const ASSETS=['./','https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js'];
+        self.addEventListener('install',e=>{ e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())); });
+        self.addEventListener('activate',e=>{ e.waitUntil(self.clients.claim()); });
+        self.addEventListener('fetch',e=>{
+          const u=new URL(e.request.url);
+          if(u.origin===location.origin){ e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{ const copy=res.clone(); caches.open(CACHE).then(c=>c.put(e.request,copy)); return res; }))); }
+        });
+      `;
+      const blob=new Blob([swCode],{type:'text/javascript'});
+      const url=URL.createObjectURL(blob);
+      navigator.serviceWorker.register(url).catch(()=>{});
+    })();
+  })();
+  </script>
+</body>
+</html>
